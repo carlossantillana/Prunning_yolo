@@ -1,3 +1,13 @@
+import torch
+import numpy as np
+from typing import Union
+#change PERCENTILE to prune at different percentiles.
+PERCENTILE = 27
+def percentile(t: torch.tensor, q: float) -> Union[int, float]:
+    k = 1 + round(.01 * float(q) * (t.numel() - 1))
+    result = t.view(-1).kthvalue(k).values.item()
+    return result
+
 def pre_prune_weights(self):
     # get weights in dict {name: torch.Tensor}
     state_dict = self.net.state_dict()
@@ -12,8 +22,11 @@ def pre_prune_weights(self):
     #           new_var = var[var < threshold]
     #           state_dict[name] = new_var
     # ================================================================ #
-    pass
-
+    for name, var in state_dict.items():
+        if "weight" in str(name) or "bias" in str(name):
+            threshold = percentile(torch.abs(var), PERCENTILE)
+            state_dict[name] = torch.where(torch.abs(var) > threshold, var, torch.zeros(var.shape).cuda())
+    self.net.load_state_dict(state_dict)
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -28,8 +41,11 @@ def prune_weights_in_training(self):
     #   or reselect threshold dynamically
     #       -> make sure pruned percentage same
     # ================================================================ #
-    pass
-
+    for name, var in state_dict.items():
+        if "weight" in str(name) or "bias" in str(name):
+            threshold = percentile(torch.abs(var), PERCENTILE)
+            state_dict[name] = torch.where(torch.abs(var) > threshold, var, torch.zeros(var.shape).cuda())
+    self.net.load_state_dict(state_dict)
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
